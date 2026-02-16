@@ -45,6 +45,7 @@ export const SocialIcon = ({ social }: SocialIconProps) => {
       href={socials[social].href}
       className="text-white hover:text-purple-300 transition-colors"
       target="_blank"
+      aria-label={`Redirect to social media ${social} profile`}
     >
       <Icon className="inline-block mr-2" weight="fill" size={20} />
     </a>

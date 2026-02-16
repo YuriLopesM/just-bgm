@@ -3,7 +3,7 @@ import { useRef, type ElementType } from 'react'
 import type { SoundKeys } from '@/@types'
 import {
   BirdIcon,
-  CityIcon,
+  ChatsCircleIcon,
   CloudRainIcon,
   FireIcon,
   WavesIcon,
@@ -31,8 +31,8 @@ export function SoundController({
     fire: FireIcon,
     wind: WindIcon,
     birds: BirdIcon,
-    city: CityIcon,
-    ocean: WavesIcon,
+    people: ChatsCircleIcon,
+    waves: WavesIcon,
   }
 
   const SoundIcon = iconsMap[sound] || null

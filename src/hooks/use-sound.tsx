@@ -13,7 +13,7 @@
 //         birds: { volume: 40 },
 //         wind: { volume: 30 },
 //         fire: { volume: 20 },
-//         ocean: { volume: 10 },
+//         waves: { volume: 10 },
 //         city: { volume: 25 },
 //       },
 //     })

@@ -3,6 +3,7 @@ import { SocialIcon, SoundController, type EnabledSocials } from '../components'
 
 import { type SoundKeys } from '@/@types'
 
+import { PauseIcon, PlayIcon } from '@phosphor-icons/react'
 import { useSoundStore } from '../store/use-sound-store'
 
 export const Route = createFileRoute('/')({
@@ -10,7 +11,9 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { sounds, play, setSoundVolume } = useSoundStore()
+  const { sounds, play, pause, setSoundVolume } = useSoundStore()
+
+  const isCurrentlyPlaying = Object.values(sounds).some((s) => s.isPlaying)
 
   return (
     <div className="relative min-h-screen flex flex-col bg-[radial-gradient(circle_at_50%_75%_in_oklab,#4338ca_0%,#1e1b4b_50%,#0c0c0c_100%)] text-white">
@@ -23,6 +26,26 @@ function Home() {
         </h1>
       </header>
 
+      <section className="relative z-10 flex items-center justify-center mb-8">
+        {isCurrentlyPlaying ? (
+          <button
+            onClick={() => pause()}
+            className="animate-pulse cursor-pointer"
+            aria-label="pause"
+          >
+            <PauseIcon size={80} weight="fill" />
+          </button>
+        ) : (
+          <button
+            onClick={() => play()}
+            className="cursor-pointer"
+            aria-label="start"
+          >
+            <PlayIcon size={80} weight="fill" />
+          </button>
+        )}
+      </section>
+
       <main
         className="
           relative flex-1
@@ -32,7 +55,6 @@ function Home() {
           z-10
         "
       >
-        <button onClick={() => play('rain')}>play</button>
         {Object.entries(sounds).map(([sound, { volume }]) => (
           <SoundController
             key={sound}

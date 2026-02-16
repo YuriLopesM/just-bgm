@@ -1,4 +1,4 @@
-import type { SoundKeys, SoundState } from '@/@types'
+import type { PausableSound, SoundKeys, SoundState } from '@/@types'
 import { SOUND_FILES } from '@/constants'
 import { create } from 'zustand'
 
@@ -6,12 +6,10 @@ import { persist } from 'zustand/middleware'
 
 const audioContext = new AudioContext()
 const masterGain = audioContext.createGain()
-
 masterGain.connect(audioContext.destination)
 
 const buffers = new Map<SoundKeys, AudioBuffer>()
-const sources = new Map<SoundKeys, AudioBufferSourceNode>()
-const gains = new Map<SoundKeys, GainNode>()
+const soundsMap = new Map<SoundKeys, PausableSound>()
 
 async function loadBuffer(sound: SoundKeys) {
   if (buffers.has(sound)) return
@@ -19,52 +17,64 @@ async function loadBuffer(sound: SoundKeys) {
   const res = await fetch(SOUND_FILES[sound])
   const arr = await res.arrayBuffer()
   const buffer = await audioContext.decodeAudioData(arr)
-
   buffers.set(sound, buffer)
 }
 
-async function playSound(sound: SoundKeys) {
+export async function playSound(storeSounds: SoundState['sounds']) {
   await audioContext.resume()
-  await loadBuffer(sound)
 
-  const buffer = buffers.get(sound)
-  if (!buffer) return
+  for (const key of Object.keys(storeSounds) as SoundKeys[]) {
+    const userVol = storeSounds[key]?.volume ?? 100
+    let s = soundsMap.get(key)
 
-  const source = audioContext.createBufferSource()
-  const gain = audioContext.createGain()
+    if (!buffers.has(key)) await loadBuffer(key)
+    const buffer = buffers.get(key)!
+    if (!s) {
+      const gain = audioContext.createGain()
+      gain.gain.value = userVol / 100
+      gain.connect(masterGain)
 
-  source.buffer = buffer
-  source.loop = true
+      s = { gain, startTime: 0, pauseTime: 0, isPlaying: false }
+      soundsMap.set(key, s)
+    } else {
+      s.gain.gain.value = userVol / 100
+    }
 
-  source.connect(gain)
-  gain.connect(masterGain)
+    if (s.isPlaying) continue
 
-  source.start()
+    const source = audioContext.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    source.connect(s.gain)
 
-  sources.set(sound, source)
-  gains.set(sound, gain)
+    const offset = s.pauseTime || 0
+    source.start(0, offset)
+
+    s.source = source
+    s.startTime = audioContext.currentTime - offset
+    s.isPlaying = true
+  }
 }
 
-function stopSound(sound: SoundKeys) {
-  const source = sources.get(sound)
-  if (!source) return
+export function pauseSound() {
+  for (const s of soundsMap.values()) {
+    if (!s.isPlaying) continue
 
-  source.stop()
-  source.disconnect()
-
-  sources.delete(sound)
-  gains.delete(sound)
+    s.source?.stop()
+    s.source?.disconnect()
+    s.source = undefined
+    s.pauseTime = audioContext.currentTime - s.startTime
+    s.isPlaying = false
+  }
 }
 
-function setSoundVolume(sound: SoundKeys, value: number) {
-  const gain = gains.get(sound)
-  if (!gain) return
-
-  gain.gain.value = value / 100
+export function setMasterVolume(v: number) {
+  masterGain.gain.value = v / 100
 }
 
-function setMasterVolume(value: number) {
-  masterGain.gain.value = value / 100
+export function setSoundVolume(sound: SoundKeys, v: number) {
+  const s = soundsMap.get(sound)
+  if (s) s.gain.gain.value = v / 100
 }
 
 export const useSoundStore = create<SoundState>()(
@@ -77,33 +87,34 @@ export const useSoundStore = create<SoundState>()(
         birds: { volume: 0, isPlaying: false },
         wind: { volume: 0, isPlaying: false },
         fire: { volume: 0, isPlaying: false },
-        ocean: { volume: 0, isPlaying: false },
-        city: { volume: 0, isPlaying: false },
+        waves: { volume: 0, isPlaying: false },
+        people: { volume: 0, isPlaying: false },
       },
 
-      play: async (sound) => {
-        await playSound(sound)
-
-        // Apply stored volume
-        const volume = get().sounds[sound]?.volume ?? 0
-        setSoundVolume(sound, volume)
+      play: async () => {
+        const sounds = get().sounds
+        await playSound(sounds)
 
         set((state) => ({
-          sounds: {
-            ...state.sounds,
-            [sound]: { ...state.sounds[sound], isPlaying: true },
-          },
+          sounds: Object.fromEntries(
+            Object.entries(state.sounds).map(([k, v]) => [
+              k,
+              { ...v, isPlaying: state.volume > 0 ? true : false },
+            ])
+          ) as SoundState['sounds'],
         }))
       },
 
-      stop: (sound) => {
-        stopSound(sound)
+      pause: () => {
+        pauseSound()
 
         set((state) => ({
-          sounds: {
-            ...state.sounds,
-            [sound]: { ...state.sounds[sound], isPlaying: false },
-          },
+          sounds: Object.fromEntries(
+            Object.entries(state.sounds).map(([k, v]) => [
+              k,
+              { ...v, isPlaying: false },
+            ])
+          ) as SoundState['sounds'],
         }))
       },
 
@@ -114,7 +125,6 @@ export const useSoundStore = create<SoundState>()(
 
       setSoundVolume: (sound, v) => {
         setSoundVolume(sound, v)
-
         set((state) => ({
           sounds: {
             ...state.sounds,
