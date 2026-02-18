@@ -65,13 +65,38 @@ export function SoundController({
     e.currentTarget.releasePointerCapture(e.pointerId)
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowUp') {
+      handleVolumeChange(sound, clamp(volume + 5))
+      return
+    }
+
+    if (e.key === 'ArrowDown') {
+      handleVolumeChange(sound, clamp(volume - 5))
+      return
+    }
+  }
+
   return (
     <div
       onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`w-36 flex flex-col items-center justify-center gap-4 p-6 m-0 border border-purple-400 rounded-lg shadow-xl cursor-s-resize`}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      data-label={sound.toUpperCase()}
+      className={`
+        w-36 flex flex-col items-center justify-center gap-4 p-6 m-0 shadow-xl
+        border border-purple-400 rounded-lg cursor-s-resize 
+        before:content-[attr(data-label)] before:absolute before:-top-0.5 before:text-xs before:text-white before:select-none
+        ring-1 ring-purple-300/0
+        transition
+        duration-200
+        hover:ring-purple-300
+        focus:ring-purple-300
+        outline-0
+      `}
       style={{
         background: `linear-gradient(to top, 
             oklch(49.1% 0.27 292.581) ${volume - 60}%,

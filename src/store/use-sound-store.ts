@@ -23,37 +23,48 @@ async function loadBuffer(sound: SoundKeys) {
 export async function playSound(storeSounds: SoundState['sounds']) {
   await audioContext.resume()
 
-  for (const key of Object.keys(storeSounds) as SoundKeys[]) {
-    const userVol = storeSounds[key]?.volume ?? 100
-    let s = soundsMap.get(key)
+  await Promise.allSettled(
+    (Object.keys(storeSounds) as SoundKeys[]).map(async (key) => {
+      try {
+        const userVol = storeSounds[key]?.volume ?? 100
+        let s = soundsMap.get(key)
 
-    if (!buffers.has(key)) await loadBuffer(key)
-    const buffer = buffers.get(key)!
-    if (!s) {
-      const gain = audioContext.createGain()
-      gain.gain.value = userVol / 100
-      gain.connect(masterGain)
+        if (!buffers.has(key)) {
+          await loadBuffer(key)
+        }
 
-      s = { gain, startTime: 0, pauseTime: 0, isPlaying: false }
-      soundsMap.set(key, s)
-    } else {
-      s.gain.gain.value = userVol / 100
-    }
+        const buffer = buffers.get(key)
+        if (!buffer) return
 
-    if (s.isPlaying) continue
+        if (!s) {
+          const gain = audioContext.createGain()
+          gain.gain.value = userVol / 100
+          gain.connect(masterGain)
 
-    const source = audioContext.createBufferSource()
-    source.buffer = buffer
-    source.loop = true
-    source.connect(s.gain)
+          s = { gain, startTime: 0, pauseTime: 0, isPlaying: false }
+          soundsMap.set(key, s)
+        } else {
+          s.gain.gain.value = userVol / 100
+        }
 
-    const offset = s.pauseTime || 0
-    source.start(0, offset)
+        if (s.isPlaying) return
 
-    s.source = source
-    s.startTime = audioContext.currentTime - offset
-    s.isPlaying = true
-  }
+        const source = audioContext.createBufferSource()
+        source.buffer = buffer
+        source.loop = true
+        source.connect(s.gain)
+
+        const offset = s.pauseTime || 0
+        source.start(0, offset)
+
+        s.source = source
+        s.startTime = audioContext.currentTime - offset
+        s.isPlaying = true
+      } catch (err) {
+        console.error(`Failed to start sound: ${key}`, err)
+      }
+    })
+  )
 }
 
 export function pauseSound() {
@@ -72,16 +83,37 @@ export function setMasterVolume(v: number) {
   masterGain.gain.value = v / 100
 }
 
-export function setSoundVolume(sound: SoundKeys, v: number) {
+export function setIndividualVolume(sound: SoundKeys, v: number) {
   const s = soundsMap.get(sound)
   if (s) s.gain.gain.value = v / 100
+}
+
+function parseUrlSounds(): Partial<SoundState['sounds']> {
+  const search = window.location.search.slice(1)
+  if (!search) return {}
+
+  const result: Partial<SoundState['sounds']> = {}
+
+  search.split(',').forEach((entry) => {
+    const match = entry.match(/^([a-zA-Z]+)(\d+)$/)
+    if (!match) return
+
+    const [, key, volume] = match
+
+    result[key as SoundKeys] = {
+      volume: Number(volume),
+      isPlaying: false,
+    }
+  })
+
+  return result
 }
 
 export const useSoundStore = create<SoundState>()(
   persist(
     (set, get) => ({
       volume: 100,
-
+      isLoading: false,
       sounds: {
         rain: { volume: 50, isPlaying: false },
         birds: { volume: 0, isPlaying: false },
@@ -89,9 +121,11 @@ export const useSoundStore = create<SoundState>()(
         fire: { volume: 0, isPlaying: false },
         waves: { volume: 0, isPlaying: false },
         people: { volume: 0, isPlaying: false },
+        ...parseUrlSounds(),
       },
 
       play: async () => {
+        set({ isLoading: true })
         const sounds = get().sounds
         await playSound(sounds)
 
@@ -102,6 +136,7 @@ export const useSoundStore = create<SoundState>()(
               { ...v, isPlaying: state.volume > 0 ? true : false },
             ])
           ) as SoundState['sounds'],
+          isLoading: false,
         }))
       },
 
@@ -115,6 +150,7 @@ export const useSoundStore = create<SoundState>()(
               { ...v, isPlaying: false },
             ])
           ) as SoundState['sounds'],
+          isLoading: false,
         }))
       },
 
@@ -124,13 +160,24 @@ export const useSoundStore = create<SoundState>()(
       },
 
       setSoundVolume: (sound, v) => {
-        setSoundVolume(sound, v)
+        setIndividualVolume(sound, v)
         set((state) => ({
           sounds: {
             ...state.sounds,
             [sound]: { ...state.sounds[sound], volume: v },
           },
         }))
+      },
+
+      getShareLink: () => {
+        const sounds = get().sounds
+
+        const search = Object.entries(sounds)
+          .filter(([, v]) => v.volume > 0)
+          .map(([key, v]) => `${key}${v.volume}`)
+          .join(',')
+
+        return `${window.location.origin}?${search}`
       },
     }),
     {
@@ -139,10 +186,26 @@ export const useSoundStore = create<SoundState>()(
         volume: state.volume,
         sounds: state.sounds,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          setMasterVolume(state.volume)
+      merge: (persistedState, currentState) => {
+        const state = persistedState as SoundState
+
+        if (!state) return currentState
+
+        return {
+          ...currentState,
+          ...state,
+          sounds: Object.fromEntries(
+            Object.entries(state?.sounds ?? {}).map(([k, v]) => [
+              k,
+              { ...v, isPlaying: false },
+            ])
+          ),
         }
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+
+        setMasterVolume(state.volume)
       },
     }
   )

@@ -47,7 +47,7 @@ export const SocialIcon = ({ social }: SocialIconProps) => {
       target="_blank"
       aria-label={`Redirect to social media ${social} profile`}
     >
-      <Icon className="inline-block mr-2" weight="fill" size={20} />
+      <Icon className="inline-block" weight="fill" size={20} />
     </a>
   )
 }

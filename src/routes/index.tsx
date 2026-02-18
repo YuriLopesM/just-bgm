@@ -1,9 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { SocialIcon, SoundController, type EnabledSocials } from '../components'
+import {
+  PlayPause,
+  ShareButton,
+  SocialIcon,
+  SoundController,
+  VolumeSlider,
+  type EnabledSocials,
+} from '../components'
 
 import { type SoundKeys } from '@/@types'
 
-import { PauseIcon, PlayIcon } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 import { useSoundStore } from '../store/use-sound-store'
 
 export const Route = createFileRoute('/')({
@@ -11,39 +18,61 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { sounds, play, pause, setSoundVolume } = useSoundStore()
+  const {
+    sounds,
+    volume,
+    isLoading,
+    play,
+    pause,
+    setSoundVolume,
+    setVolume,
+    getShareLink,
+  } = useSoundStore()
 
   const isCurrentlyPlaying = Object.values(sounds).some((s) => s.isPlaying)
+
+  const handleShare = () => {
+    const link = getShareLink()
+    navigator.clipboard.writeText(link)
+    toast.success('Share link copied to clipboard!')
+  }
 
   return (
     <div className="relative min-h-screen flex flex-col bg-[radial-gradient(circle_at_50%_75%_in_oklab,#4338ca_0%,#1e1b4b_50%,#0c0c0c_100%)] text-white">
       <div className="absolute z-0 bg-noise inset-0 opacity-[0.8] mix-blend-overlay pointer-events-none" />
-      <div className="absolute z-0 bg-cloud-pattern inset-0 opacity-[0.8] mix-blend-multiply pointer-events-none" />
+      <div
+        className={`absolute z-0 bg-cloud-pattern inset-0 opacity-[0.8] mix-blend-multiply pointer-events-none will-change-[background-position] ${isCurrentlyPlaying ? '[animation-play-state:running]' : '[animation-play-state:paused]'}`}
+      />
 
-      <header className="relative p-16 z-10 flex items-center justify-center">
-        <h1 className="text-5xl text-purple-400 text-shadow-lg/20">
-          Just<span className="text-white font-bold">BGM</span>
-        </h1>
+      <header className="relative z-10 h-9 w-full bg-black/20 flex justify-between px-6">
+        <div className="flex items-center gap-2 text-sm text-white font-light">
+          <p>Master Volume:</p>
+          <VolumeSlider volume={volume} setVolume={setVolume} />
+          <span>{volume}%</span>
+        </div>
+        <ShareButton onClick={handleShare} />
       </header>
 
-      <section className="relative z-10 flex items-center justify-center mb-8">
-        {isCurrentlyPlaying ? (
-          <button
-            onClick={() => pause()}
-            className="animate-pulse cursor-pointer"
-            aria-label="pause"
-          >
-            <PauseIcon size={80} weight="fill" />
-          </button>
-        ) : (
-          <button
-            onClick={() => play()}
-            className="cursor-pointer"
-            aria-label="start"
-          >
-            <PlayIcon size={80} weight="fill" />
-          </button>
-        )}
+      <header className="relative z-10 p-16 flex flex-col items-center justify-center gap-6">
+        <div className="flex items-center justify-center gap-4">
+          <h1 className="text-5xl text-purple-400 text-shadow-lg/20">
+            Just<span className="text-white font-bold">BGM</span>
+          </h1>
+          <img src="/logo.svg" className="w-10 h-10" alt="Logo" />
+        </div>
+        <p className="font-light text-purple-200 text-center text-md">
+          Background ambience to quiet the noise —{' '}
+          <span className="text-purple-300 font-medium">without paywalls</span>.
+        </p>
+      </header>
+
+      <section className="relative z-10 flex items-center justify-center mb-16 m-auto">
+        <PlayPause
+          play={play}
+          pause={pause}
+          isPlaying={isCurrentlyPlaying}
+          isLoading={isLoading}
+        />
       </section>
 
       <main
@@ -66,9 +95,9 @@ function Home() {
       </main>
 
       <footer className="p-4 text-center text-sm z-10">
-        <p className="inline-flex items-center justify-center">
-          Made by Yuri
-          <span className="mx-2 text-gray-400">|</span>
+        <p className="inline-flex items-center justify-center gap-2">
+          Made by Yuri Lopes 🐱‍👤
+          <span className="text-gray-400">|</span>
           {['github', 'linkedin', 'instagram', 'x'].map((s) => (
             <SocialIcon key={s} social={s as EnabledSocials} />
           ))}

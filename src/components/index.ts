@@ -1,2 +1,5 @@
+export * from './play-pause'
+export * from './share-button'
 export * from './social-icon'
 export * from './sound-controller'
+export * from './volume-slider'

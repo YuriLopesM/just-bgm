@@ -6,6 +6,7 @@ export type Sound = {
 
 export type SoundState = {
   volume: number
+  isLoading: boolean
   sounds: Partial<Record<SoundKeys, { volume: number; isPlaying: boolean }>>
 
   wander?: boolean
@@ -14,6 +15,7 @@ export type SoundState = {
   pause: () => void
   setVolume: (v: number) => void
   setSoundVolume: (sound: SoundKeys, v: number) => void
+  getShareLink: () => string
 }
 
 export type PausableSound = {
