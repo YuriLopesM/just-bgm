@@ -13,6 +13,14 @@ export function Providers() {
   useEffect(() => {
     if (!clarityId) return
 
+    const ua = navigator.userAgent
+
+    // Exclude headless browsers and bots
+    if (ua.includes('HeadlessChrome')) return
+    if (ua.includes('bot')) return
+    if (ua.includes('crawler')) return
+    if (navigator.webdriver) return
+
     Clarity.init(clarityId)
     Clarity.consentV2()
   }, [clarityId])
