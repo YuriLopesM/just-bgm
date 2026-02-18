@@ -5,10 +5,17 @@ import Clarity from '@microsoft/clarity'
 
 import { Toaster } from 'sonner'
 
+import { useEffect } from 'react'
+
 export function Providers() {
   const clarityId = import.meta.env.VITE_CLARITY_ID
-  Clarity.init(clarityId)
-  Clarity.consentV2()
+
+  useEffect(() => {
+    if (!clarityId) return
+
+    Clarity.init(clarityId)
+    Clarity.consentV2()
+  }, [clarityId])
 
   return (
     <>
