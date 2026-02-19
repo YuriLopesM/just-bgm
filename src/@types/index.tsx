@@ -1,13 +1,19 @@
 export type SoundKeys = 'rain' | 'birds' | 'wind' | 'fire' | 'waves' | 'people'
 
-export type Sound = {
-  volume: number
-}
+export type Sound = Partial<
+  Record<
+    SoundKeys,
+    {
+      volume: number
+      isPlaying: boolean
+    }
+  >
+>
 
 export type SoundState = {
   volume: number
   isLoading: boolean
-  sounds: Partial<Record<SoundKeys, { volume: number; isPlaying: boolean }>>
+  sounds: Sound
 
   wander?: boolean
 

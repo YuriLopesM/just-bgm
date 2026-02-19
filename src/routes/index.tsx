@@ -38,7 +38,7 @@ function Home() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-[radial-gradient(circle_at_50%_75%_in_oklab,#4338ca_0%,#1e1b4b_50%,#0c0c0c_100%)] text-white">
+    <div className="relative min-h-screen flex flex-col gap-8 bg-[radial-gradient(circle_at_50%_75%_in_oklab,#4338ca_0%,#1e1b4b_50%,#0c0c0c_100%)] text-white">
       <div className="absolute z-0 bg-noise inset-0 opacity-[0.8] mix-blend-overlay pointer-events-none" />
       <div
         className={`absolute z-0 bg-cloud-pattern inset-0 opacity-[0.8] mix-blend-multiply pointer-events-none will-change-[background-position] ${isCurrentlyPlaying ? '[animation-play-state:running]' : '[animation-play-state:paused]'}`}
@@ -53,7 +53,7 @@ function Home() {
         <ShareButton onClick={handleShare} />
       </header>
 
-      <header className="relative z-10 p-16 flex flex-col items-center justify-center gap-6">
+      <header className="relative z-10 px-16 pt-8 flex flex-col items-center justify-center gap-6">
         <div className="flex items-center justify-center gap-4">
           <h1 className="text-5xl text-purple-400 text-shadow-lg/20">
             Just<span className="text-white font-bold">BGM</span>
@@ -66,7 +66,7 @@ function Home() {
         </p>
       </header>
 
-      <section className="relative z-10 flex items-center justify-center mb-16 m-auto">
+      <section className="relative z-10 mb-4 flex items-center justify-center m-auto">
         <PlayPause
           play={play}
           pause={pause}
@@ -79,7 +79,7 @@ function Home() {
         className="
           relative flex-1
           container mx-auto
-          grid place-items-center grid-cols-[repeat(auto-fit,minmax(9rem,9rem))] justify-center content-start gap-8
+          grid place-items-center grid-cols-[repeat(auto-fit,minmax(9rem,9rem))] justify-center content-start gap-8 gap-y-12
           px-6 py-8
           z-10
         "

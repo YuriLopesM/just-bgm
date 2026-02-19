@@ -1,4 +1,4 @@
-import { useRef, type ElementType } from 'react'
+import { useRef, useState, type ElementType } from 'react'
 
 import type { SoundKeys } from '@/@types'
 import {
@@ -22,6 +22,8 @@ export function SoundController({
   handleVolumeChange,
 }: SoundControllerProps) {
   const dragging = useRef(false)
+  const timeoutRef = useRef<number | null>(null)
+  const [isChangingVolume, setChangingVolume] = useState(false)
   const lastY = useRef(0)
 
   const clamp = (value: number) => Math.max(0, Math.min(100, value))
@@ -37,14 +39,30 @@ export function SoundController({
 
   const SoundIcon = iconsMap[sound] || null
 
+  function showVolumeTemporarily() {
+    setChangingVolume(true)
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      setChangingVolume(false)
+    }, 800)
+  }
+
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     const sensitivity = 0.05
 
+    setChangingVolume(true)
     handleVolumeChange(sound, clamp(volume - e.deltaY * sensitivity))
+    showVolumeTemporarily()
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dragging.current = true
+    setChangingVolume(true)
+
     lastY.current = e.clientY
     e.currentTarget.setPointerCapture(e.pointerId)
   }
@@ -62,18 +80,27 @@ export function SoundController({
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     dragging.current = false
+    showVolumeTemporarily()
     e.currentTarget.releasePointerCapture(e.pointerId)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'ArrowUp') {
+      setChangingVolume(true)
       handleVolumeChange(sound, clamp(volume + 5))
       return
     }
 
     if (e.key === 'ArrowDown') {
+      setChangingVolume(true)
       handleVolumeChange(sound, clamp(volume - 5))
       return
+    }
+  }
+
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      showVolumeTemporarily()
     }
   }
 
@@ -85,11 +112,12 @@ export function SoundController({
       onPointerUp={handlePointerUp}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onKeyUp={handleKeyUp}
       data-label={sound.toUpperCase()}
       className={`
-        w-36 flex flex-col items-center justify-center gap-4 p-6 m-0 shadow-xl
+        relative w-36 flex flex-col items-center justify-center gap-4 p-6 m-0 shadow-xl
         border border-purple-400 rounded-lg cursor-s-resize 
-        before:content-[attr(data-label)] before:absolute before:-top-0.5 before:text-xs before:text-white before:select-none
+        before:content-[attr(data-label)] before:absolute before:-top-6 before:text-xs before:text-white before:select-none
         ring-1 ring-purple-300/0
         transition
         duration-200
@@ -107,9 +135,13 @@ export function SoundController({
       <header>
         <SoundIcon size={64} className="text-purple-100" weight="light" />
       </header>
-      <main>
-        <p className="text-sm select-none text-purple-200">Volume: {volume}%</p>
-      </main>
+      {!!isChangingVolume && (
+        <section className="absolute -bottom-10 left-0 -translate-y-1/2 w-full flex items-center justify-center">
+          <p className="text-sm select-none text-purple-200">
+            Volume: {volume}%
+          </p>
+        </section>
+      )}
     </div>
   )
 }

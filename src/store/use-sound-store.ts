@@ -205,6 +205,24 @@ export const useSoundStore = create<SoundState>()(
       onRehydrateStorage: () => (state) => {
         if (!state) return
 
+        // overwrites the persisted sounds with the ones from the URL, if any, to ensure the URL always takes precedence on load
+        // do not save the URL sounds to the store, as they are only meant to be applied on the initial load and not override the persisted state on every load
+        const urlSounds = parseUrlSounds()
+
+        if (Object.keys(urlSounds).length > 0) {
+          state.sounds = {
+            ...state.sounds,
+            ...Object.fromEntries(
+              Object.entries(urlSounds).map(([key, value]) => [
+                key,
+                {
+                  ...state.sounds?.[key as SoundKeys],
+                  volume: value.volume,
+                },
+              ])
+            ),
+          }
+        }
         setMasterVolume(state.volume)
       },
     }
