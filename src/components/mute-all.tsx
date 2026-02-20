@@ -1,10 +1,17 @@
+import type { ComponentProps } from 'react'
+
 import { SpeakerSlashIcon } from '@phosphor-icons/react'
 
-export const MuteAllButton = ({ onClick }: { onClick: () => void }) => {
+type MuteAllButtonProps = {
+  className?: ComponentProps<'div'>['className']
+  onClick: () => void
+}
+
+export const MuteAllButton = ({ className, onClick }: MuteAllButtonProps) => {
   return (
     <button
       onClick={onClick}
-      className="px-4 py-2 cursor-pointer bg-red-500 text-white rounded hover:bg-red-300 transition"
+      className={`p-2 cursor-pointer rounded-full text-white  hover:bg-red-500 transition ${className || ''}`}
     >
       <SpeakerSlashIcon size={20} />
     </button>

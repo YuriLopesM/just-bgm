@@ -76,7 +76,7 @@ function Home() {
       <section className="relative z-10 mb-4 flex items-center justify-center m-auto">
         <PlayPause play={play} pause={pause} isPlaying={isMasterPlaying} />
 
-        <MuteAllButton onClick={handleMuteAll} />
+        <MuteAllButton onClick={handleMuteAll} className="absolute -right-24" />
       </section>
 
       <main
