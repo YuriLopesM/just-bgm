@@ -1,26 +1,33 @@
-export type SoundKeys = 'rain' | 'birds' | 'wind' | 'fire' | 'waves' | 'people'
+export type SoundId =
+  | `rain${number}`
+  | `storm${number}`
+  | `wind${number}`
+  | `waves${number}`
+  | `fire${number}`
+  | `birds${number}`
+  | `cat${number}`
+  | `people${number}`
 
-export type Sound = Partial<
-  Record<
-    SoundKeys,
-    {
-      volume: number
-      isPlaying: boolean
-    }
-  >
->
+export type Sound = {
+  id: SoundId
+  name: string
+  volume: number
+  file: string
+  isPlaying: boolean
+  isLoading?: boolean
+}
 
 export type SoundState = {
   volume: number
-  isLoading: boolean
-  sounds: Sound
+  sounds: Sound[]
 
-  wander?: boolean
+  isMasterPlaying: boolean
 
   play: () => Promise<void>
   pause: () => void
   setVolume: (v: number) => void
-  setSoundVolume: (sound: SoundKeys, v: number) => void
+  setSoundVolume: (id: SoundId, v: number) => Promise<void>
+  muteAll: () => void
   getShareLink: () => string
 }
 

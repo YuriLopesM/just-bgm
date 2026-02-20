@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import {
+  MuteAllButton,
   PlayPause,
   ShareButton,
   SocialIcon,
@@ -7,8 +8,6 @@ import {
   VolumeSlider,
   type EnabledSocials,
 } from '../components'
-
-import { type SoundKeys } from '@/@types'
 
 import { toast } from 'sonner'
 import { useSoundStore } from '../store/use-sound-store'
@@ -21,15 +20,14 @@ function Home() {
   const {
     sounds,
     volume,
-    isLoading,
+    isMasterPlaying,
     play,
     pause,
     setSoundVolume,
     setVolume,
+    muteAll,
     getShareLink,
   } = useSoundStore()
-
-  const isCurrentlyPlaying = Object.values(sounds).some((s) => s.isPlaying)
 
   const handleShare = () => {
     const link = getShareLink()
@@ -37,11 +35,20 @@ function Home() {
     toast.success('Share link copied to clipboard!')
   }
 
+  const handleMuteAll = () => {
+    toast('All volumes will be reset to zero. Do you wish to continue?', {
+      action: {
+        label: '🔇 Mute all',
+        onClick: muteAll,
+      },
+    })
+  }
+
   return (
     <div className="relative min-h-screen flex flex-col gap-8 bg-[radial-gradient(circle_at_50%_75%_in_oklab,#4338ca_0%,#1e1b4b_50%,#0c0c0c_100%)] text-white">
       <div className="absolute z-0 bg-noise inset-0 opacity-[0.8] mix-blend-overlay pointer-events-none" />
       <div
-        className={`absolute z-0 bg-cloud-pattern inset-0 opacity-[0.8] mix-blend-multiply pointer-events-none will-change-[background-position] ${isCurrentlyPlaying ? '[animation-play-state:running]' : '[animation-play-state:paused]'}`}
+        className={`absolute z-0 bg-cloud-pattern inset-0 opacity-[0.8] mix-blend-multiply pointer-events-none will-change-[background-position] ${isMasterPlaying ? '[animation-play-state:running]' : '[animation-play-state:paused]'}`}
       />
 
       <header className="relative z-10 h-9 w-full bg-black/20 flex justify-between px-6">
@@ -67,28 +74,24 @@ function Home() {
       </header>
 
       <section className="relative z-10 mb-4 flex items-center justify-center m-auto">
-        <PlayPause
-          play={play}
-          pause={pause}
-          isPlaying={isCurrentlyPlaying}
-          isLoading={isLoading}
-        />
+        <PlayPause play={play} pause={pause} isPlaying={isMasterPlaying} />
+
+        <MuteAllButton onClick={handleMuteAll} />
       </section>
 
       <main
         className="
           relative flex-1
           container mx-auto
-          grid place-items-center grid-cols-[repeat(auto-fit,minmax(9rem,9rem))] justify-center content-start gap-8 gap-y-12
+          flex flex-wrap justify-center content-start gap-x-8 gap-y-16 sm:gap-y-16 
           px-6 py-8
           z-10
         "
       >
-        {Object.entries(sounds).map(([sound, { volume }]) => (
+        {sounds.map((sound) => (
           <SoundController
-            key={sound}
-            sound={sound as SoundKeys}
-            volume={volume}
+            key={sound.id}
+            sound={sound}
             handleVolumeChange={setSoundVolume}
           />
         ))}
@@ -96,7 +99,7 @@ function Home() {
 
       <footer className="p-4 text-center text-sm z-10">
         <p className="inline-flex items-center justify-center gap-2">
-          Made by Yuri Lopes 🐱‍👤
+          Made by Yuri Lopes 🎨
           <span className="text-gray-400">|</span>
           {['github', 'linkedin', 'instagram', 'x'].map((s) => (
             <SocialIcon key={s} social={s as EnabledSocials} />

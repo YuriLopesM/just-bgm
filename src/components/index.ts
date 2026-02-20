@@ -1,3 +1,4 @@
+export * from './mute-all'
 export * from './play-pause'
 export * from './share-button'
 export * from './social-icon'

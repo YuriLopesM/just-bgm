@@ -1,5 +1,4 @@
-import type { PausableSound, SoundKeys, SoundState } from '@/@types'
-import { SOUND_FILES } from '@/constants'
+import type { PausableSound, Sound, SoundId, SoundState } from '@/@types'
 import { create } from 'zustand'
 
 import { persist } from 'zustand/middleware'
@@ -8,67 +7,150 @@ const audioContext = new AudioContext()
 const masterGain = audioContext.createGain()
 masterGain.connect(audioContext.destination)
 
-const buffers = new Map<SoundKeys, AudioBuffer>()
-const soundsMap = new Map<SoundKeys, PausableSound>()
+const buffers = new Map<string, AudioBuffer>()
+const bufferPromises = new Map<string, Promise<void>>()
+const soundsEngineMap = new Map<string, PausableSound>()
 
-async function loadBuffer(sound: SoundKeys) {
-  if (buffers.has(sound)) return
+const sounds: Sound[] = [
+  {
+    id: 'rain1',
+    name: 'Calm Rain',
+    volume: 50,
+    isPlaying: false,
+    file: 'rain.flac',
+  },
+  {
+    id: 'rain2',
+    name: 'Rain',
+    volume: 50,
+    isPlaying: false,
+    file: 'rain2.ogg',
+  },
+  {
+    id: 'storm1',
+    name: 'Storm',
+    volume: 50,
+    isPlaying: false,
+    file: 'storm.wav',
+  },
+  {
+    id: 'wind1',
+    name: 'Wind',
+    volume: 50,
+    isPlaying: false,
+    file: 'wind.wav',
+  },
+  {
+    id: 'waves1',
+    name: 'Waves',
+    volume: 50,
+    isPlaying: false,
+    file: 'waves.wav',
+  },
+  {
+    id: 'fire1',
+    name: 'Fire',
+    volume: 50,
+    isPlaying: false,
+    file: 'fire.flac',
+  },
+  {
+    id: 'birds1',
+    name: 'Birds',
+    volume: 50,
+    isPlaying: false,
+    file: 'birds.wav',
+  },
+  {
+    id: 'cat1',
+    name: 'Cat Purring',
+    volume: 50,
+    isPlaying: false,
+    file: 'cat.wav',
+  },
+  {
+    id: 'people1',
+    name: 'Talking',
+    volume: 50,
+    isPlaying: false,
+    file: 'people.wav',
+  },
+  {
+    id: 'people2',
+    name: 'Talking II',
+    volume: 50,
+    isPlaying: false,
+    file: 'people2.wav',
+  },
+]
 
-  const res = await fetch(SOUND_FILES[sound])
-  const arr = await res.arrayBuffer()
-  const buffer = await audioContext.decodeAudioData(arr)
-  buffers.set(sound, buffer)
+async function loadBuffer(id: string) {
+  // Already decoded the sound
+  if (buffers.has(id)) return
+
+  // Already loading the sound
+  if (bufferPromises.has(id)) return bufferPromises.get(id)
+
+  const promise = (async () => {
+    const pathName = sounds.find((s) => s.id === id)?.file
+    if (!pathName) return
+
+    const res = await fetch(`/sounds/${pathName}`)
+    const arr = await res.arrayBuffer()
+    const buffer = await audioContext.decodeAudioData(arr)
+
+    buffers.set(id, buffer)
+    bufferPromises.delete(id)
+  })()
+
+  bufferPromises.set(id, promise)
+
+  return promise
 }
 
-export async function playSound(storeSounds: SoundState['sounds']) {
-  await audioContext.resume()
+async function startSound(id: string, volume: number) {
+  await loadBuffer(id)
 
-  await Promise.allSettled(
-    (Object.keys(storeSounds) as SoundKeys[]).map(async (key) => {
-      try {
-        const userVol = storeSounds[key]?.volume ?? 100
-        let s = soundsMap.get(key)
+  const buffer = buffers.get(id)
+  if (!buffer) return
 
-        if (!buffers.has(key)) {
-          await loadBuffer(key)
-        }
+  let engine = soundsEngineMap.get(id)
 
-        const buffer = buffers.get(key)
-        if (!buffer) return
+  if (!engine) {
+    const gain = audioContext.createGain()
+    gain.connect(masterGain)
 
-        if (!s) {
-          const gain = audioContext.createGain()
-          gain.gain.value = userVol / 100
-          gain.connect(masterGain)
+    engine = {
+      gain,
+      startTime: 0,
+      pauseTime: 0,
+      isPlaying: false,
+    }
 
-          s = { gain, startTime: 0, pauseTime: 0, isPlaying: false }
-          soundsMap.set(key, s)
-        } else {
-          s.gain.gain.value = userVol / 100
-        }
+    soundsEngineMap.set(id, engine)
+  }
 
-        if (s.isPlaying) return
+  if (engine.isPlaying) return
 
-        const source = audioContext.createBufferSource()
-        source.buffer = buffer
-        source.loop = true
-        source.connect(s.gain)
+  engine.gain.gain.value = volume / 100
 
-        const offset = s.pauseTime || 0
-        source.start(0, offset)
+  const source = audioContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+  source.connect(engine.gain)
 
-        s.source = source
-        s.startTime = audioContext.currentTime - offset
-        s.isPlaying = true
-      } catch (err) {
-        console.error(`Failed to start sound: ${key}`, err)
-      }
-    })
-  )
+  const offset = engine.pauseTime % buffer.duration
+
+  source.start(0, offset)
+
+  engine.startTime = audioContext.currentTime - offset
+  engine.pauseTime = 0
+  engine.source = source
+  engine.isPlaying = true
 }
 
-export function pauseSound() {
-  for (const s of soundsMap.values()) {
+function pause() {
+  for (const s of soundsEngineMap.values()) {
     if (!s.isPlaying) continue
 
     s.source?.stop()
@@ -79,31 +161,38 @@ export function pauseSound() {
   }
 }
 
-export function setMasterVolume(v: number) {
+function setMasterVolume(v: number) {
   masterGain.gain.value = v / 100
 }
 
-export function setIndividualVolume(sound: SoundKeys, v: number) {
-  const s = soundsMap.get(sound)
+function setIndividualVolume(id: SoundId, v: number) {
+  const s = soundsEngineMap.get(id)
+
   if (s) s.gain.gain.value = v / 100
 }
 
-function parseUrlSounds(): Partial<SoundState['sounds']> {
+function parseUrlSounds(): Sound[] | null {
   const search = window.location.search.slice(1)
-  if (!search) return {}
+  if (!search) return null
 
-  const result: Partial<SoundState['sounds']> = {}
+  let result: Sound[] = []
 
   search.split(',').forEach((entry) => {
     const match = entry.match(/^([a-zA-Z]+)(\d+)$/)
     if (!match) return
 
-    const [, key, volume] = match
+    const [, id, volume] = match
 
-    result[key as SoundKeys] = {
-      volume: Number(volume),
+    const sound = sounds.find((s) => s.id === id)
+    if (!sound) return
+
+    result.push({
+      id: id as SoundId,
+      name: sound.name,
+      file: sound.file,
+      volume: parseInt(volume, 10),
       isPlaying: false,
-    }
+    })
   })
 
   return result
@@ -112,45 +201,56 @@ function parseUrlSounds(): Partial<SoundState['sounds']> {
 export const useSoundStore = create<SoundState>()(
   persist(
     (set, get) => ({
+      isMasterPlaying: false,
       volume: 100,
-      isLoading: false,
-      sounds: {
-        rain: { volume: 50, isPlaying: false },
-        birds: { volume: 0, isPlaying: false },
-        wind: { volume: 0, isPlaying: false },
-        fire: { volume: 0, isPlaying: false },
-        waves: { volume: 0, isPlaying: false },
-        people: { volume: 0, isPlaying: false },
-        ...parseUrlSounds(),
-      },
+      sounds: (() => {
+        const urlSounds = parseUrlSounds()
+        if (!urlSounds) return sounds
+
+        const urlMap = new Map(urlSounds.map((s) => [s.id, s]))
+
+        return sounds.map((sound) => {
+          const fromUrl = urlMap.get(sound.id)
+          if (!fromUrl) return sound
+
+          return {
+            ...sound,
+            ...fromUrl,
+            isPlaying: false,
+          }
+        })
+      })(),
 
       play: async () => {
-        set({ isLoading: true })
+        set({ isMasterPlaying: true })
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume()
+        }
+
         const sounds = get().sounds
-        await playSound(sounds)
+
+        await Promise.allSettled(
+          sounds
+            .filter((s) => s.volume > 0)
+            .map((s) => startSound(s.id, s.volume))
+        )
 
         set((state) => ({
-          sounds: Object.fromEntries(
-            Object.entries(state.sounds).map(([k, v]) => [
-              k,
-              { ...v, isPlaying: state.volume > 0 ? true : false },
-            ])
-          ) as SoundState['sounds'],
-          isLoading: false,
+          sounds: state.sounds.map((s) =>
+            s.volume > 0 ? { ...s, isPlaying: true } : s
+          ),
         }))
       },
 
       pause: () => {
-        pauseSound()
+        set({ isMasterPlaying: false })
+        pause()
 
         set((state) => ({
-          sounds: Object.fromEntries(
-            Object.entries(state.sounds).map(([k, v]) => [
-              k,
-              { ...v, isPlaying: false },
-            ])
-          ) as SoundState['sounds'],
-          isLoading: false,
+          sounds: state.sounds.map((s) => ({
+            ...s,
+            isPlaying: false,
+          })),
         }))
       },
 
@@ -159,22 +259,44 @@ export const useSoundStore = create<SoundState>()(
         set({ volume: v })
       },
 
-      setSoundVolume: (sound, v) => {
-        setIndividualVolume(sound, v)
+      setSoundVolume: async (id, v) => {
+        setIndividualVolume(id, v)
+
         set((state) => ({
-          sounds: {
-            ...state.sounds,
-            [sound]: { ...state.sounds[sound], volume: v },
-          },
+          sounds: state.sounds.map((sound) =>
+            sound.id === id ? { ...sound, volume: v, isPlaying: v > 0 } : sound
+          ),
+        }))
+
+        if (v > 0) {
+          await loadBuffer(id)
+        }
+
+        if (v > 0 && get().isMasterPlaying) {
+          await startSound(id, v)
+        }
+      },
+
+      muteAll: () => {
+        set(({ sounds }) => ({
+          sounds: sounds.map((sound) => {
+            setIndividualVolume(sound.id, 0)
+
+            return {
+              ...sound,
+              volume: 0,
+              isPlaying: false,
+            }
+          }),
         }))
       },
 
       getShareLink: () => {
         const sounds = get().sounds
 
-        const search = Object.entries(sounds)
-          .filter(([, v]) => v.volume > 0)
-          .map(([key, v]) => `${key}${v.volume}`)
+        const search = sounds
+          .filter((sound) => sound.volume > 0)
+          .map((sound) => `${sound.id}${sound.volume}`)
           .join(',')
 
         return `${window.location.origin}?${search}`
@@ -194,12 +316,10 @@ export const useSoundStore = create<SoundState>()(
         return {
           ...currentState,
           ...state,
-          sounds: Object.fromEntries(
-            Object.entries(state?.sounds ?? {}).map(([k, v]) => [
-              k,
-              { ...v, isPlaying: false },
-            ])
-          ),
+          sounds: (state?.sounds ?? []).map((sound) => ({
+            ...sound,
+            isPlaying: false,
+          })),
         }
       },
       onRehydrateStorage: () => (state) => {
@@ -209,19 +329,18 @@ export const useSoundStore = create<SoundState>()(
         // do not save the URL sounds to the store, as they are only meant to be applied on the initial load and not override the persisted state on every load
         const urlSounds = parseUrlSounds()
 
-        if (Object.keys(urlSounds).length > 0) {
-          state.sounds = {
-            ...state.sounds,
-            ...Object.fromEntries(
-              Object.entries(urlSounds).map(([key, value]) => [
-                key,
-                {
-                  ...state.sounds?.[key as SoundKeys],
-                  volume: value.volume,
-                },
-              ])
-            ),
-          }
+        if (urlSounds && urlSounds.length > 0) {
+          state.sounds = state.sounds.map((sound) => {
+            const fromUrl = urlSounds.find((s) => s.id === sound.id)
+
+            if (!fromUrl) return sound
+
+            return {
+              ...sound,
+              ...fromUrl,
+              isPlaying: false,
+            }
+          })
         }
         setMasterVolume(state.volume)
       },
