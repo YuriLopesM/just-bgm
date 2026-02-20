@@ -310,16 +310,24 @@ export const useSoundStore = create<SoundState>()(
       }),
       merge: (persistedState, currentState) => {
         const state = persistedState as SoundState
-
         if (!state) return currentState
+
+        const persistedMap = new Map((state.sounds ?? []).map((s) => [s.id, s]))
 
         return {
           ...currentState,
-          ...state,
-          sounds: (state?.sounds ?? []).map((sound) => ({
-            ...sound,
-            isPlaying: false,
-          })),
+          volume: state.volume ?? currentState.volume,
+          sounds: currentState.sounds.map((defaultSound) => {
+            const persisted = persistedMap.get(defaultSound.id)
+
+            if (!persisted) return defaultSound
+
+            return {
+              ...defaultSound,
+              volume: persisted.volume,
+              isPlaying: false,
+            }
+          }),
         }
       },
       onRehydrateStorage: () => (state) => {

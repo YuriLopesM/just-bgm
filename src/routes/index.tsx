@@ -37,6 +37,7 @@ function Home() {
 
   const handleMuteAll = () => {
     toast('All volumes will be reset to zero. Do you wish to continue?', {
+      id: 'confirm-mute-all',
       action: {
         label: '🔇 Mute all',
         onClick: muteAll,

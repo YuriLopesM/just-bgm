@@ -6,6 +6,7 @@ type VolumeSliderProps = {
 export const VolumeSlider = ({ volume, setVolume }: VolumeSliderProps) => {
   return (
     <input
+      aria-label="Master Volume Slider"
       type="range"
       min={0}
       max={100}
