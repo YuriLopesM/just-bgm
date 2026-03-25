@@ -1,6 +1,10 @@
 # JustBGM
 
+<<<<<<< HEAD
 Credits (Freesound):
+=======
+Credits (hehehehehe):
+>>>>>>> febf19b (feat: hehehe testing)
 
 rain1 - https://freesound.org/people/unfa/sounds/177479/
 rain2 - https://freesound.org/people/aesqe/sounds/37618/
